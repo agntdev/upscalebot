@@ -1,6 +1,6 @@
 [
   {
-    "name": "Check Membership",
+    "name": "Check Membership explains setup when no group is configured",
     "steps": [
       {
         "expect": [
