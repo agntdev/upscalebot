@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Owner controls are protected when owner access is unset",
+    "steps": [
+      {
+        "send": { "callback": "owner:open" },
+        "expect": [{ "method": "sendMessage", "payload": { "text": "Owner access isn't set up yet." } }]
+      }
+    ]
+  }
+]

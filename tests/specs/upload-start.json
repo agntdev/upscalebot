@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Initiate image upload flow"
+              "text": "Send one image to prepare it for upscaling."
             }
           }
         ],

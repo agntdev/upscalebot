@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Show group membership instructions"
+              "text": "The membership group isn’t set up yet. Please ask the owner for the group link."
             }
           }
         ],

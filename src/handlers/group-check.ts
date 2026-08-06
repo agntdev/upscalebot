@@ -1,17 +1,8 @@
 import { Composer } from "grammy";
-
-// SCAFFOLD — generated from the bot blueprint BEFORE the agent runs.
-// Keep a LIVE registration (.command / .callbackQuery / …) so this feature is
-// never an empty stub. Replace the reply body with real logic + copy; if you
-// change the user-facing text, update tests/specs to match EXACTLY.
-// Do NOT rewrite src/bot.ts — buildBot() already auto-loads this module.
-// Menu: wire this into /start via registerMainMenuItem({ label: "Check Membership", data: "group:check" }) if the toolkit exposes it.
-
-const composer = new Composer();
-
-composer.callbackQuery("group:check", async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.reply("Verify group membership status");
-});
-
+import type { Ctx } from "../bot.js";
+import { inlineButton, inlineKeyboard, registerMainMenuItem } from "../toolkit/index.js";
+import { getUser, saveUser, settings } from "../domain-store.js";
+registerMainMenuItem({ label: "Check membership", data: "group:check", order: 40 });
+const composer = new Composer<Ctx>();
+composer.callbackQuery("group:check", async (ctx) => { await ctx.answerCallbackQuery(); if (!ctx.from) return; const config = await settings(ctx); if (!config.groupChatId) { await ctx.reply("The membership group isn’t set up yet. Ask the owner to configure it.", { reply_markup: inlineKeyboard([[inlineButton("Back to menu", "menu:main")]]) }); return; } try { const member: any = await ctx.api.getChatMember(config.groupChatId, ctx.from.id); const joined = ["creator", "administrator", "member", "restricted"].includes(member.status); if (!joined) { await ctx.reply("You’re not in the group yet. Join it, then check again.", { reply_markup: inlineKeyboard([[inlineButton("Join group", "group:join")], [inlineButton("Back to menu", "menu:main")]]) }); return; } const previous = await getUser(ctx, ctx.from.id); const saved = await saveUser(ctx, { telegramId: ctx.from.id, username: ctx.from.username, groupMember: true, tier: previous?.tier ?? "free", expiryDate: previous?.expiryDate, credits: previous?.groupMember ? previous.credits : Math.max(previous?.credits ?? 0, 1) }); if (!saved) { await ctx.reply("Membership was confirmed, but credits aren’t set up yet. Please try again shortly."); return; } await ctx.reply(previous?.groupMember ? "Your group membership is confirmed." : "Your group membership is confirmed. One Standard credit is ready to use.", { reply_markup: inlineKeyboard([[inlineButton("Upload image", "upload:start")], [inlineButton("Back to menu", "menu:main")]]) }); } catch { await ctx.reply("We couldn’t check the group right now. Make sure you joined it, then try again.", { reply_markup: inlineKeyboard([[inlineButton("Check membership", "group:check")], [inlineButton("Back to menu", "menu:main")]]) }); } });
 export default composer;

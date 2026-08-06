@@ -1,17 +1,8 @@
 import { Composer } from "grammy";
-
-// SCAFFOLD — generated from the bot blueprint BEFORE the agent runs.
-// Keep a LIVE registration (.command / .callbackQuery / …) so this feature is
-// never an empty stub. Replace the reply body with real logic + copy; if you
-// change the user-facing text, update tests/specs to match EXACTLY.
-// Do NOT rewrite src/bot.ts — buildBot() already auto-loads this module.
-// Menu: wire this into /start via registerMainMenuItem({ label: "Join Group", data: "group:join" }) if the toolkit exposes it.
-
-const composer = new Composer();
-
-composer.callbackQuery("group:join", async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.reply("Show group membership instructions");
-});
-
+import type { Ctx } from "../bot.js";
+import { inlineButton, inlineKeyboard, registerMainMenuItem, urlButton } from "../toolkit/index.js";
+import { settings } from "../domain-store.js";
+registerMainMenuItem({ label: "Join group", data: "group:join", order: 30 });
+const composer = new Composer<Ctx>();
+composer.callbackQuery("group:join", async (ctx) => { await ctx.answerCallbackQuery(); const config = await settings(ctx); if (!config.groupInviteLink) { await ctx.reply("The membership group isn’t set up yet. Please ask the owner for the group link.", { reply_markup: inlineKeyboard([[inlineButton("Back to menu", "menu:main")]]) }); return; } await ctx.reply("Join the group, then come back here to confirm your membership.", { reply_markup: inlineKeyboard([[urlButton("Open group", config.groupInviteLink)], [inlineButton("Check membership", "group:check")], [inlineButton("Back to menu", "menu:main")]]) }); });
 export default composer;

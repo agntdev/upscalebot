@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Verify group membership status"
+              "text": "The membership group isn’t set up yet. Ask the owner to configure it."
             }
           }
         ],
