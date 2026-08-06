@@ -1,13 +1,13 @@
 [
   {
-    "name": "Check Membership explains setup when no group is configured",
+    "name": "Check Membership prompts a non-member to join the supplied group",
     "steps": [
       {
         "expect": [
           {
             "method": "sendMessage",
             "payload": {
-              "text": "The membership group isn’t set up yet. Ask the owner to configure it."
+              "text": "You’re not in the group yet. Join it, then check again."
             }
           }
         ],

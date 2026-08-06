@@ -17,6 +17,13 @@ type TelegramFailure = {
   parameters?: { retry_after?: number };
 };
 
+function resolveChatId(value: string): string {
+  const group = value.trim();
+  if (/^-?\d+$/.test(group) || group.startsWith("@")) return group;
+  const match = group.match(/^https:\/\/t\.me\/([A-Za-z0-9_]{5,})\/?(?:\?.*)?$/);
+  return match ? `@${match[1]}` : group;
+}
+
 function telegramFailure(error: unknown): TelegramFailure {
   const candidate = error as TelegramFailure & { message?: string };
   return {
@@ -56,21 +63,47 @@ function membershipErrorMessage(error: unknown): string {
       ? `Telegram asked us to wait ${retryAfter} seconds. Please try again shortly.`
       : "Telegram is busy right now. Please try again shortly.";
   }
-  if (description.includes("chat not found")) {
-    return "Couldn’t find the membership group. Please ask the owner to check its group settings.";
-  }
   if (
     failure.error_code === 403 ||
+    description.includes("chat not found") ||
     description.includes("not a member") ||
     description.includes("not enough rights") ||
     description.includes("forbidden")
   ) {
-    return "Couldn’t verify membership. Please make sure the bot is in the group and try again.";
+    return "Couldn’t verify membership because the bot needs group access. Ask the owner to add the bot and allow member checks.";
   }
   if (description.includes("user not found") || description.includes("participant_id_invalid")) {
     return "You’re not in the group yet. Join it, then check again.";
   }
-  return "Couldn’t verify membership right now. Please try again shortly.";
+  if (failure.error_code === undefined || failure.error_code >= 500) {
+    return "Couldn’t verify membership right now. Please try again shortly.";
+  }
+  return "Couldn’t verify membership because Telegram rejected the group check. Ask the owner to review the group settings.";
+}
+
+function logMembershipFailure(error: unknown, chatId: string, userId: number): void {
+  const failure = telegramFailure(error);
+  const description = (failure.description ?? "").toLowerCase();
+  const needsGroupAccess =
+    failure.error_code === 403 ||
+    description.includes("chat not found") ||
+    description.includes("not enough rights") ||
+    description.includes("forbidden");
+  if (needsGroupAccess) {
+    console.error("[membership check] Telegram could not check group access", {
+      chatId,
+      userId,
+      errorCode: failure.error_code,
+      description: failure.description,
+    });
+  } else {
+    console.error("[membership check] Telegram membership request failed", {
+      chatId,
+      userId,
+      errorCode: failure.error_code,
+      description: failure.description,
+    });
+  }
 }
 
 composer.callbackQuery("group:check", async (ctx) => {
@@ -89,13 +122,17 @@ composer.callbackQuery("group:check", async (ctx) => {
     // Telegram requires the target group chat ID first and the requesting
     // Telegram user's ID second. The configured ID is stored as text so large
     // negative supergroup IDs are never truncated.
-    const member = await checkMember(ctx, config.groupChatId, ctx.from.id);
+    const chatId = resolveChatId(config.groupChatId);
+    const member = await checkMember(ctx, chatId, ctx.from.id);
     // A restricted chat member can remain in the group, but Telegram also uses
     // that status with is_member=false after they leave. Do not grant credits in
     // the latter case.
     const joined =
       ["creator", "administrator", "member"].includes(member.status) ||
-      (member.status === "restricted" && member.is_member);
+      (member.status === "restricted" &&
+        (typeof member.can_send_messages === "boolean"
+          ? member.can_send_messages
+          : member.is_member === true));
     if (!joined) {
       await ctx.reply("You’re not in the group yet. Join it, then check again.", {
         reply_markup: inlineKeyboard([
@@ -132,6 +169,7 @@ composer.callbackQuery("group:check", async (ctx) => {
       },
     );
   } catch (error) {
+    logMembershipFailure(error, resolveChatId(config.groupChatId), ctx.from.id);
     await ctx.reply(membershipErrorMessage(error), { reply_markup: retryKeyboard });
   }
 });
