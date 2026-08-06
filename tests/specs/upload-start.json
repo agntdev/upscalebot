@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Upload Image",
+    "steps": [
+      {
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Initiate image upload flow"
+            }
+          }
+        ],
+        "send": {
+          "callback": "upload:start"
+        }
+      }
+    ]
+  }
+]
