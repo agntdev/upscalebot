@@ -1,17 +1,8 @@
 import { Composer } from "grammy";
-
-// SCAFFOLD — generated from the bot blueprint BEFORE the agent runs.
-// Keep a LIVE registration (.command / .callbackQuery / …) so this feature is
-// never an empty stub. Replace the reply body with real logic + copy; if you
-// change the user-facing text, update tests/specs to match EXACTLY.
-// Do NOT rewrite src/bot.ts — buildBot() already auto-loads this module.
-// Menu: wire this into /start via registerMainMenuItem({ label: "Pricing", data: "pricing:show" }) if the toolkit exposes it.
-
-const composer = new Composer();
-
-composer.callbackQuery("pricing:show", async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.reply("Display subscription tier details");
-});
-
+import type { Ctx } from "../bot.js";
+import { inlineButton, inlineKeyboard, registerMainMenuItem } from "../toolkit/index.js";
+import { settings } from "../domain-store.js";
+registerMainMenuItem({ label: "Pricing", data: "pricing:show", order: 20 });
+const composer = new Composer<Ctx>();
+composer.callbackQuery("pricing:show", async (ctx) => { await ctx.answerCallbackQuery(); const plan = await settings(ctx); await ctx.reply(`Choose the detail you need.\n\n${plan.standardLabel}: 2× upscaling.\n${plan.proLabel}: 4× upscaling.\n\nSubscriptions are approved manually after payment proof.`, { reply_markup: inlineKeyboard([[inlineButton("Send payment proof", "payment:start")], [inlineButton("Back to menu", "menu:main")]]) }); });
 export default composer;

@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Payment proof request flow",
+    "steps": [
+      {
+        "send": { "callback": "payment:start" },
+        "expect": [{ "method": "sendMessage", "payload": { "text": "Choose the subscription you paid for." } }]
+      },
+      {
+        "send": { "callback": "payment:tier:pro" },
+        "expect": [{ "method": "sendMessage", "payload": { "text": "Send the payment proof as an image or file." } }]
+      }
+    ]
+  }
+]

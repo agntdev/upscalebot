@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Display subscription tier details"
+              "text": "Choose the detail you need.\n\nStandard — 2×: 2× upscaling.\nPro — 4×: 4× upscaling.\n\nSubscriptions are approved manually after payment proof."
             }
           }
         ],
