@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "The membership group isn’t set up yet. Please ask the owner for the group link."
+              "text": "Join the group, then come back here to confirm your membership."
             }
           }
         ],

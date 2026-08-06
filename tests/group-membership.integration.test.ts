@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createBot } from "../src/toolkit/index.js";
 import groupCheck from "../src/handlers/group-check.js";
 import type { Session } from "../src/bot.js";
@@ -16,7 +16,7 @@ type UserRow = {
 /** Minimal D1 double: it exercises the actual durable user read/write path. */
 function membershipDatabase() {
   const users = new Map<number, UserRow>();
-  const configuredGroupId = "-1001234567890";
+  const configuredGroupId = "1004301841447";
 
   return {
     users,
@@ -87,7 +87,7 @@ describe("group membership verification", () => {
     await bot.handleUpdate(callbackUpdate(1, "group:check", { userId: 77, chatId: 77 }));
 
     expect(calls.find((call) => call.method === "getChatMember")?.payload).toMatchObject({
-      chat_id: "-1001234567890",
+      chat_id: "1004301841447",
       user_id: 77,
     });
     expect(database.users.get(77)).toMatchObject({ group_member: 1, credits: 1, tier: "free" });
@@ -124,14 +124,54 @@ describe("group membership verification", () => {
       return { ok: true, result: true } as never;
     });
 
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
     await bot.handleUpdate(callbackUpdate(2, "group:check", { userId: 77, chatId: 77 }));
 
     expect(calls.find((call) => call.method === "getChatMember")?.payload).toMatchObject({
-      chat_id: "-1001234567890",
+      chat_id: "1004301841447",
       user_id: 77,
     });
     expect(calls.find((call) => call.method === "sendMessage")?.payload.text).toBe(
-      "Couldn’t verify membership. Please make sure the bot is in the group and try again.",
+      "Couldn’t verify membership because the bot needs group access. Ask the owner to add the bot and allow member checks.",
+    );
+    expect(log).toHaveBeenCalledWith(
+      "[membership check] Telegram could not check group access",
+      expect.objectContaining({ chatId: "1004301841447", userId: 77, errorCode: 403 }),
+    );
+    log.mockRestore();
+    expect(database.users.get(77)).toBeUndefined();
+  });
+
+  it("does not grant a credit to a user who has left the group", async () => {
+    const database = membershipDatabase();
+    const bot = createBot<Session>("test-token", { initial: () => ({}) });
+    bot.use((ctx, next) => {
+      (ctx as typeof ctx & { env: { DB: unknown } }).env = { DB: database.DB };
+      return next();
+    });
+    bot.use(groupCheck);
+    bot.botInfo = {
+      id: 42, is_bot: true, first_name: "TestBot", username: "test_bot",
+      can_join_groups: true, can_read_all_group_messages: false,
+      supports_inline_queries: false, can_connect_to_business: false,
+      has_main_web_app: false,
+    };
+
+    const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+    bot.api.config.use(async (_previous, method, payload) => {
+      calls.push({ method, payload: payload as Record<string, unknown> });
+      if (method === "getChatMember") return { ok: true, result: { status: "left" } } as never;
+      return { ok: true, result: true } as never;
+    });
+
+    await bot.handleUpdate(callbackUpdate(3, "group:check", { userId: 77, chatId: 77 }));
+
+    expect(calls.find((call) => call.method === "getChatMember")?.payload).toMatchObject({
+      chat_id: "1004301841447",
+      user_id: 77,
+    });
+    expect(calls.find((call) => call.method === "sendMessage")?.payload.text).toBe(
+      "You’re not in the group yet. Join it, then check again.",
     );
     expect(database.users.get(77)).toBeUndefined();
   });
